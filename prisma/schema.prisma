@@ -11,11 +11,106 @@ datasource db {
   provider = "postgresql"
 }
 
+enum SkinType {
+  OILY // OLEOSO
+  DRY // SECO
+  COMBINATION // MISTO
+  SENSITIVE // SENSIVEL
+}
+
+enum HairType {
+  STRAIGHT // LISO
+  WAVY // ONDULADO
+  CURLY // CACHEADO
+  COILY //  CRESPO
+}
+
+enum BudgetRange {
+  LOW // BAIXO
+  MEDIUM // MÉDIO
+  HIGH // ALTO
+}
+
+enum AgeRange {
+  TEEN
+  YOUNG_ADULT
+  ADULT
+  MATURE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum UserPlan {
+  FREE
+  PREMIUM
+}
+
 model User {
-  id  String @id @default(uuid())
-  name String
-  email String @unique
-  password String
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  plan      UserPlan @default(FREE)
+
+  profile UserProfile?
+
+  searchHistory SearchHistory[]
+
+  usage Usage?
+}
+
+model UserProfile {
+  id String @id @default(uuid())
+
+  skinType SkinType?
+  hairType HairType?
+  budget   BudgetRange?
+  ageRange AgeRange?
+  gender   Gender?
+
+  sensitiveSkin Boolean @default(false)
+  veganOnly     Boolean @default(false)
+
+  userId String @unique
+
+  user User @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SearchHistory {
+  id String @id @default(uuid())
+
+  query String
+
+  userId String
+
+  intent String?
+  reply String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Usage {
+  id String @id @default(uuid())
+
+  questionsUsed Int @default(0)
+
+  resetAt DateTime
+
+  userId String @unique
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
