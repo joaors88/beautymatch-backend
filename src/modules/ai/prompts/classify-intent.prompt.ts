@@ -20,6 +20,9 @@ um como-fazer). Sinais: "o que é", "para que serve", "como funciona", "como apl
 PRODUCT_COMPARISON — apresenta DUAS OU MAIS opções e quer escolher ou saber qual é
 melhor. Sinais: "X ou Y", "X vs Y", "qual é melhor", "qual escolher".
 
+GREETING — saudação, despedida, agradecimento ou conversa social, SEM nenhum pedido de
+beleza. Sinais: "oi", "olá", "bom dia", "tudo bem?", "obrigado", "valeu", "tchau".
+
 OUT_OF_SCOPE — o assunto NÃO é sobre beleza ou cuidados pessoais de uso no corpo.
 Também é OUT_OF_SCOPE qualquer produto para a casa, ambiente, objetos, carro ou
 animais, MESMO que o nome lembre um produto de beleza (ex.: perfume/aromatizador de
@@ -34,7 +37,9 @@ Regras de desempate (siga nesta ordem):
    que use uma palavra de beleza (perfume, shampoo, sabonete) fora do contexto pessoal.
 3. Pedido de comprar / encontrar / preço => PRODUCT_SEARCH.
    Pedido de sugestão / conselho => RECOMMENDATION.
-4. Se a mensagem for curta e ambígua e NÃO houver nenhuma indicação explícita de
+4. Se a mensagem traz saudação E um pedido, classifique pelo PEDIDO, nunca como
+   GREETING ("oi, queria um shampoo" -> PRODUCT_SEARCH).
+5. Se a mensagem for curta e ambígua e NÃO houver nenhuma indicação explícita de
    casa, ambiente, carro, objeto ou animal, assuma contexto de beleza pessoal.
    Pergunta sobre validade, armazenamento ou modo de usar um produto de beleza é
    EDUCATION (ex.: "perfume vence?", "creme vence?" -> EDUCATION).
@@ -101,6 +106,18 @@ Exemplos:
 
 "sérum de vitamina C ou de niacinamida?"
 -> { "intent": "PRODUCT_COMPARISON", "canonicalTerm": null, "category": null }
+
+"oi"
+-> { "intent": "GREETING", "canonicalTerm": null, "category": null }
+
+"bom dia, tudo bem?"
+-> { "intent": "GREETING", "canonicalTerm": null, "category": null }
+
+"obrigado, valeu!"
+-> { "intent": "GREETING", "canonicalTerm": null, "category": null }
+
+"oi, queria um shampoo pra cabelo oleoso"
+-> { "intent": "PRODUCT_SEARCH", "canonicalTerm": "shampoo cabelo oleoso", "category": "CABELO" }
 
 "quem descobriu o brasil?"
 -> { "intent": "OUT_OF_SCOPE", "canonicalTerm": null, "category": null }

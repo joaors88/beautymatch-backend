@@ -9,6 +9,7 @@ import { PRODUCT_COMPARISON_PROMPT } from './prompts/comparison.prompt'
 import { SEARCH_QUERY_PROMPT } from './prompts/search.query.prompt'
 import { SEARCH_COMMENT_PROMPT } from './prompts/search-comment.prompt'
 import { CANONIZE_TRENDS_PROMPT } from './prompts/canonize-trends.prompt'
+import { GREETING_PROMPT } from './prompts/greeting.prompt'
 
 export interface ChatMessage {
     role: string
@@ -89,6 +90,27 @@ export class AiClient {
 
         const clean = content.replace(/```json/g, '').replace(/```/g, '').trim()
         return JSON.parse(clean)
+    }
+
+    /**
+     * Temperatura alta de propósito: saudação repetida palavra por palavra denuncia
+     * o robô. O histórico entra para a IA não se reapresentar a cada "oi".
+     */
+    async generateGreeting(
+        message: string,
+        profile: UserProfile | null,
+        history: ChatMessage[] = [],
+    ): Promise<string> {
+        const content = await this.callOpenRouter(
+            [
+                { role: 'system', content: GREETING_PROMPT },
+                { role: 'system', content: this.buildProfileText(profile) },
+                ...history,
+                { role: 'user', content: message },
+            ],
+            1,
+        )
+        return content.trim()
     }
 
     async generateEducation(message: string, history: ChatMessage[] = []): Promise<string> {

@@ -32,6 +32,11 @@ export class TrendsCollectorService {
         private readonly aiClient: AiClient,
     ) {}
 
+    // O agendamento NÃO mora aqui: quem dispara a rotina diária é o TrendsScheduler,
+    // que roda coleta e depois cálculo na ordem certa. Um @Cron neste serviço faria a
+    // coleta rodar duas vezes por dia — dobrando a cota do Serper e, pior, criando duas
+    // capturas com segundos de diferença, que o cálculo trataria como dois pontos
+    // distintos da série temporal.
     async collect(): Promise<CollectResult> {
         // um único instante para toda a rodada: a janela de 7 dias agrupa por captura
         const capturedAt = new Date()
@@ -56,7 +61,6 @@ export class TrendsCollectorService {
 
                     prefixesOk++
                 } catch (error) {
-                    // um prefixo que falha não derruba a rodada inteira
                     prefixesFail++
                     this.logger.error(`Falha no autocomplete do prefixo "${prefix}"`, error)
                 }
@@ -68,7 +72,6 @@ export class TrendsCollectorService {
             return { capturedAt, prefixesOk, prefixesFail, suggestions: 0, saved: 0, usedAi: false }
         }
 
-        // canonização semântica em lote; se a IA falhar, segue com o texto cru
         let canonized: { id: number; termo: string | null; categoria: string | null }[]
         let usedAi = true
 
@@ -84,7 +87,6 @@ export class TrendsCollectorService {
             }))
         }
 
-        // o mesmo termo pode vir de dois prefixos: guarda a melhor posição
         const best = new Map<string, {
             term: string
             category: ProductCategory
