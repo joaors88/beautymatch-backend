@@ -3,6 +3,10 @@ import { UsageService } from '../usage/usage.service'
 import { PrismaService } from 'src/modules/prisma/prisma.service'
 import { AiClient } from 'src/modules/ai/ai.client'
 import { Product, ProductSearchService } from 'src/modules/search/product-search.service'
+import { normalizeCanonicalTerm, normalizeCategory, normalizeIntent } from 'src/common/canonical-term'
+import { ProductCategory } from '@prisma/client'
+import { Intent } from 'src/modules/ai/enums/intent.enums'
+import { TrendsService } from 'src/modules/trends/trends.service'
 
 @Injectable()
 export class ChatService {
@@ -10,7 +14,8 @@ export class ChatService {
     private readonly prisma: PrismaService,
     private readonly usageService: UsageService,
     private readonly aiClient: AiClient,
-    private readonly productSearchService: ProductSearchService
+    private readonly productSearchService: ProductSearchService,
+    private readonly trendsService: TrendsService,
   ) {}
 
   async handleMessage(userId: string, message: string) {
@@ -51,41 +56,66 @@ export class ChatService {
         { role: 'assistant', content: h.reply as string },
       ])
 
-    let intent = 'OUT_OF_SCOPE'
+      let intent: Intent = Intent.OUT_OF_SCOPE
+      let canonicalTerm: string | null = null
+      let category: ProductCategory | null = null
 
-    try {
+      try {
         const result = await this.aiClient.classifyIntent(message, historyMessages)
 
-    if (result?.intent) {
-        intent = result.intent
-     }
-    } catch (error) {
+        intent = normalizeIntent(result?.intent)
+
+        if (intent === Intent.PRODUCT_SEARCH || intent === Intent.RECOMMENDATION) {
+          canonicalTerm = normalizeCanonicalTerm(result?.canonicalTerm)
+          category = normalizeCategory(result?.category)
+        }
+      } catch (error) {
         console.error('AI error:', error)
-        intent = 'OUT_OF_SCOPE'
-    }
+        intent = Intent.OUT_OF_SCOPE
+      }
 
     let reply: string
 
     let products: Product[] = []
 
+    // termos em alta devolvidos como dado, para o front renderizar como sugestões
+    // clicáveis — o clique reaproveita o fluxo de PRODUCT_SEARCH
+    let trending: string[] = []
+
     switch (intent) {
-      case 'OUT_OF_SCOPE':
+      case Intent.OUT_OF_SCOPE:
         reply = 'Desculpe, só posso ajudar com assuntos de beleza - skincare, maquiagem, cabelo, perfumaria e cuidados pessoais.'
           break
 
-      case 'EDUCATION':
+      case Intent.EDUCATION:
         reply = await this.aiClient.generateEducation(message, historyMessages)
           break
 
-      case 'RECOMMENDATION':
-        reply = await this.aiClient.generateRecommendation(message, user.profile, historyMessages)
+      case Intent.RECOMMENDATION: {
+        // se a leitura falhar, a recomendação continua normalmente sem os termos
+        try {
+          const rising = await this.trendsService.getRising(category ?? undefined, 5)
+          trending = rising.map((t) => t.term)
+        } catch (error) {
+          console.error('Trends error:', error)
+        }
+
+        // os termos vão também para a IA: quando ela encaixa um na resposta o texto
+        // fica mais natural, mas isso é bônus — a entrega garantida é o campo trending
+        reply = await this.aiClient.generateRecommendation(
+          message,
+          user.profile,
+          historyMessages,
+          trending,
+        )
+        break
+      }
+
+      case Intent.PRODUCT_COMPARISON:
+        reply = await this.aiClient.generationComparison(message, user.profile, historyMessages)
           break
 
-      case 'PRODUCT_COMPARISON':
-        reply = await this.aiClient.generationComparison(message, user.profile, historyMessages)
-          break        
-
-      case 'PRODUCT_SEARCH': {
+      case Intent.PRODUCT_SEARCH: {
         const result = await this.productSearchService.search(message, user.profile, historyMessages)
         reply = result.reply
         products = result.products
@@ -104,6 +134,8 @@ export class ChatService {
         query: message,
         intent,
         reply,
+        canonicalTerm,
+        category,
       },
     })
 
@@ -115,6 +147,7 @@ export class ChatService {
       intent,
       reply,
       products,
+      trending,
       context: {
         profile: user.profile,
         history,

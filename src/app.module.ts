@@ -8,9 +8,11 @@ import { UsageService } from './usage/usage.service';
 import { ChatModule } from './chat/chat.module';
 import { UsageModule } from './usage/usage.module';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TrendsModule } from './modules/trends/trends.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, UsersModule, AuthModule, ProfileModule, SearchHistoryModule, ChatModule, UsageModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), ScheduleModule.forRoot(), PrismaModule, UsersModule, AuthModule, ProfileModule, SearchHistoryModule, ChatModule, UsageModule, TrendsModule],
   controllers: [],
   providers: [],
 })

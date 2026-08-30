@@ -6,7 +6,7 @@ import { ProductSearchService } from "./product-search.service";
 @Module({
     imports: [AiModule],
     providers: [searchClient, ProductSearchService],
-    exports: [ProductSearchService]
+    exports: [ProductSearchService, searchClient]
 })
 
 export class searchModule {}

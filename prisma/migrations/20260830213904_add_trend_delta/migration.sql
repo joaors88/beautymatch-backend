@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "TrendScore" ADD COLUMN     "delta" DOUBLE PRECISION NOT NULL DEFAULT 1;

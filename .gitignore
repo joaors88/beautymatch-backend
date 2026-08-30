@@ -34,6 +34,9 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+# guias de estudo locais, nao versionados
+REQUESTS.md
+TENDENCIAS.md
 
 # dotenv environment variable files
 .env

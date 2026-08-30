@@ -50,6 +50,15 @@ enum UserPlan {
   PREMIUM
 }
 
+enum ProductCategory {
+  SKINCARE_FACIAL
+  CORPO
+  CABELO
+  MAQUIAGEM
+  PROTECAO_SOLAR
+  PERFUMARIA
+}
+
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -95,9 +104,15 @@ model SearchHistory {
   intent String?
   reply String?
 
+  canonicalTerm String?          @db.VarChar(120)
+  category      ProductCategory?
+
   user User @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
+
+  @@index([category, createdAt])
+  @@index([canonicalTerm, createdAt])
 }
 
 model Usage {
@@ -113,4 +128,46 @@ model Usage {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum TrendSource {
+  AUTOCOMPLETE
+}
+
+model TrendSnapshot {
+  id String @id @default(uuid())
+
+  term     String          @db.VarChar(120)
+  category ProductCategory
+  source   TrendSource
+  position Int
+
+  capturedAt DateTime @default(now())
+
+  @@index([term, capturedAt])
+  @@index([category, capturedAt])
+}
+
+enum TrendDirection {
+  RISING
+  STABLE
+  FALLING
+}
+
+model TrendScore {
+  id String @id @default(uuid())
+
+  term      String          @db.VarChar(120)
+  category  ProductCategory
+  score     Float
+  delta     Float          @default(1)
+  direction TrendDirection
+
+  internalWeight Float
+  externalWeight Float
+
+  computedAt DateTime @default(now())
+
+  @@index([computedAt, category])
+  @@index([term, computedAt])
 }

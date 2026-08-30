@@ -8,10 +8,29 @@ import { RECOMMENDATION_PROMPT } from './prompts/recomendation.prompt'
 import { PRODUCT_COMPARISON_PROMPT } from './prompts/comparison.prompt'
 import { SEARCH_QUERY_PROMPT } from './prompts/search.query.prompt'
 import { SEARCH_COMMENT_PROMPT } from './prompts/search-comment.prompt'
+import { CANONIZE_TRENDS_PROMPT } from './prompts/canonize-trends.prompt'
 
 export interface ChatMessage {
     role: string
     content: string
+}
+
+export interface TrendCandidate {
+    id: number
+    text: string
+    categoryFromPrefix: string
+}
+
+export interface CanonizedTrend {
+    id: number
+    termo: string | null
+    categoria: string | null
+}
+
+export interface ClassifyIntentResult {
+    intent: string
+    canonicalTerm: string | null
+    category: string | null
 }
 
 @Injectable()
@@ -58,7 +77,7 @@ export class AiClient {
 - Apenas vegano: ${profile.veganOnly ? 'sim' : 'não'}`
     }
 
-    async classifyIntent(message: string, history: ChatMessage[] = []) {
+    async classifyIntent(message: string, history: ChatMessage[] = []): Promise<ClassifyIntentResult> {
         const content = await this.callOpenRouter(
             [
                 { role: 'system', content: CLASSIFY_INTENT_PROMPT },
@@ -84,15 +103,29 @@ export class AiClient {
         return content.trim()
     }
 
+    /**
+     * Quem decide o que está em alta é o backend; a IA só recebe os termos como
+     * informação de contexto, no mesmo padrão do perfil.
+     */
+    private buildTrendingText(terms: string[]): string {
+        if (terms.length === 0) {
+            return 'Não há termos em alta para citar agora.'
+        }
+
+        return `Termos de beleza em alta no momento: ${terms.join(', ')}.`
+    }
+
     async generateRecommendation(
         message: string,
         profile: UserProfile | null,
         history: ChatMessage[] = [],
+        trendingTerms: string[] = [],
     ): Promise<string> {
         const content = await this.callOpenRouter(
             [
                 { role: 'system', content: RECOMMENDATION_PROMPT },
                 { role: 'system', content: this.buildProfileText(profile) },
+                { role: 'system', content: this.buildTrendingText(trendingTerms) },
                 ...history,
                 { role: 'user', content: message },
             ],
@@ -154,5 +187,34 @@ export class AiClient {
             0.7,
         )
         return content.trim()
+    }
+
+    /**
+     * Canoniza em UMA chamada todas as sugestões coletadas do autocomplete.
+     * Roda no cron diário, fora do caminho do usuário — por isso o uso de LLM aqui
+     * não conflita com a restrição do fingerprint de produto, que é síncrono e
+     * precisa ser determinístico.
+     */
+    async canonizeTrendTerms(candidates: TrendCandidate[]): Promise<CanonizedTrend[]> {
+        if (candidates.length === 0) return []
+
+        const payload = candidates.map((c) => ({
+            id: c.id,
+            texto: c.text,
+            categoria_origem: c.categoryFromPrefix,
+        }))
+
+        const content = await this.callOpenRouter(
+            [
+                { role: 'system', content: CANONIZE_TRENDS_PROMPT },
+                { role: 'user', content: JSON.stringify(payload) },
+            ],
+            0,
+        )
+
+        const clean = content.replace(/```json/g, '').replace(/```/g, '').trim()
+        const parsed = JSON.parse(clean)
+
+        return Array.isArray(parsed) ? parsed : []
     }
 }
